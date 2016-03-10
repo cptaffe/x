@@ -29,6 +29,12 @@ class Window {
 
   void dispatch();
 
+ protected:
+  void onCreate();
+  void onStart();
+  void onStop();
+  void onDestroy();
+
  private:
   Display *display;
   int screen;
@@ -73,9 +79,11 @@ x::Window::Window()
       display, glXChooseVisual(display, screen, visual_attributes), nullptr,
       true);
   glXMakeCurrent(display, window, gl_context);
+  onCreate();
 }
 
 x::Window::~Window() {
+  onDestroy();
   glXMakeCurrent(display, None, nullptr);
   glXDestroyContext(display, gl_context);
   XDestroyWindow(display, window);
@@ -124,26 +132,39 @@ void x::Window::setTitle(const std::string &title) {
   XStoreName(display, window, title.c_str());
 }
 
+void x::Window::onCreate() {
+  std::cout << "x::Window::onCreate()" << std::endl;
+}
+void x::Window::onStart() { std::cout << "x::Window::onStart()" << std::endl; }
+void x::Window::onStop() { std::cout << "x::Window::onStop()" << std::endl; }
+void x::Window::onDestroy() {
+  std::cout << "x::Window::onDestroy()" << std::endl;
+}
+
 void x::Window::dispatch() {
   // ICCCM communication
-  Atom msg_wm_delete_window = XInternAtom(display, "WM_DELETE_WINDOW", False);
-  std::vector<Atom> msgs = {msg_wm_delete_window};
+  const Atom kMsgWmDeleteWindow =
+      XInternAtom(display, "WM_DELETE_WINDOW", False);
+  std::vector<Atom> msgs = {kMsgWmDeleteWindow};
   XSetWMProtocols(display, window, msgs.data(), static_cast<int>(msgs.size()));
 
+  onStart();
   XEvent event;
   for (;;) {
     XNextEvent(display, &event);
     switch (event.type) {
       case KeyPress:
-        return;
+        goto end_loop;
       case ClientMessage:
         auto atom = static_cast<Atom>(event.xclient.data.l[0]);
-        if (atom == msg_wm_delete_window) {
-          return;
+        if (atom == kMsgWmDeleteWindow) {
+          goto end_loop;
         }
         break;
     }
   }
+end_loop:
+  onStop();
 }
 
 int main() {
