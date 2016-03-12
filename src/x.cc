@@ -16,7 +16,7 @@ namespace x {
 class Window {
  public:
   Window();
-  ~Window();
+  virtual ~Window();
 
   std::tuple<int, int> getPosition() const;
   void setPosition(const std::tuple<int, int> &position);
@@ -28,12 +28,6 @@ class Window {
   void setTitle(const std::string &title);
 
   void dispatch();
-
- protected:
-  void onCreate();
-  void onStart();
-  void onStop();
-  void onDestroy();
 
  private:
   Display *display;
@@ -79,11 +73,9 @@ x::Window::Window()
       display, glXChooseVisual(display, screen, visual_attributes), nullptr,
       true);
   glXMakeCurrent(display, window, gl_context);
-  onCreate();
 }
 
 x::Window::~Window() {
-  onDestroy();
   glXMakeCurrent(display, None, nullptr);
   glXDestroyContext(display, gl_context);
   XDestroyWindow(display, window);
@@ -132,15 +124,6 @@ void x::Window::setTitle(const std::string &title) {
   XStoreName(display, window, title.c_str());
 }
 
-void x::Window::onCreate() {
-  std::cout << "x::Window::onCreate()" << std::endl;
-}
-void x::Window::onStart() { std::cout << "x::Window::onStart()" << std::endl; }
-void x::Window::onStop() { std::cout << "x::Window::onStop()" << std::endl; }
-void x::Window::onDestroy() {
-  std::cout << "x::Window::onDestroy()" << std::endl;
-}
-
 void x::Window::dispatch() {
   // ICCCM communication
   const Atom kMsgWmDeleteWindow =
@@ -148,7 +131,6 @@ void x::Window::dispatch() {
   std::vector<Atom> msgs = {kMsgWmDeleteWindow};
   XSetWMProtocols(display, window, msgs.data(), static_cast<int>(msgs.size()));
 
-  onStart();
   XEvent event;
   for (;;) {
     XNextEvent(display, &event);
@@ -163,8 +145,9 @@ void x::Window::dispatch() {
         break;
     }
   }
-end_loop:
-  onStop();
+end_loop : {
+  // cleanup
+}
 }
 
 int main() {
