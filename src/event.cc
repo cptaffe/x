@@ -3,7 +3,6 @@
 #include "src/event.h"
 
 #include <future>
-#include <iostream>
 #include <thread>
 #include <vector>
 
@@ -51,7 +50,6 @@ Spool *Spool::getInstance() {
 // another approach might be pushing the entire loop into a detached thread,
 // which would make publish() asynchronous.
 void Spool::publish(std::shared_ptr<Event> e) {
-  std::cout << e->description() << std::endl;
   std::vector<std::future<void>> futures;
   for (auto h : handlers) {
     futures.push_back(std::async(std::launch::async, [=] { h->publish(e); }));

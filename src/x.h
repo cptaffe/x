@@ -49,6 +49,7 @@ class Topic : public basilisk::Topic {
 class Event : public basilisk::Event {
  public:
   virtual ~Event();
+  virtual Window *getWindow() const = 0;
 };
 
 namespace event {
@@ -94,7 +95,7 @@ class Window : public basilisk::Window {
 
  private:
   // explicit lock instead of using XInitThreads
-  std::mutex x_lock;
+  mutable std::mutex x_lock;
   std::shared_ptr<Display> display;
   int screen;
   std::shared_ptr<::Window> window;
@@ -117,14 +118,16 @@ namespace event {
 // Keypress event
 class Key : public window::event::Key {
  public:
-  explicit Key(XKeyEvent event);
+  Key(Window *parent, XKeyEvent event);
   bool isPress() const override;
   bool isRelease() const override;
   uint32_t getCode() const override;
+  basilisk::Window *getWindow() const override;
   std::string description() override;
 
  private:
   const XKeyEvent xevent;
+  Window *window;
 };
 
 }  // namespace event

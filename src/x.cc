@@ -58,10 +58,13 @@ Window::Window()
 }
 
 Window::Geometry Window::getGeometry() const {
+  std::unique_lock<std::mutex> lock(x_lock);
   Geometry geometry;
-  XGetGeometry(display.get(), *window.get(), geometry.root_window.get(),
-               &geometry.xorigin, &geometry.yorigin, &geometry.width,
-               &geometry.height, &geometry.border_width, &geometry.depth);
+  auto root = new ::Window;
+  XGetGeometry(display.get(), *window.get(), root, &geometry.xorigin,
+               &geometry.yorigin, &geometry.width, &geometry.height,
+               &geometry.border_width, &geometry.depth);
+  geometry.root_window = std::shared_ptr<::Window>{root};
   return geometry;
 }
 
@@ -71,6 +74,7 @@ std::tuple<int, int> Window::getPosition() const {
 }
 
 void Window::setPosition(const std::tuple<int, int> &position) {
+  std::unique_lock<std::mutex> lock(x_lock);
   XWindowChanges changes;
   changes.x = std::get<0>(position);
   changes.y = std::get<1>(position);
@@ -83,6 +87,7 @@ std::tuple<int, int> Window::getDimensions() const {
 }
 
 void Window::setDimensions(const std::tuple<int, int> &dimensions) {
+  std::unique_lock<std::mutex> lock(x_lock);
   XWindowChanges changes;
   changes.width = std::get<0>(dimensions);
   changes.height = std::get<1>(dimensions);
@@ -90,35 +95,42 @@ void Window::setDimensions(const std::tuple<int, int> &dimensions) {
 }
 
 std::string Window::getTitle() const {
+  std::unique_lock<std::mutex> lock(x_lock);
   char *buf;
   XFetchName(display.get(), *window.get(), &buf);
   return {buf};
 }
 
 void Window::setTitle(const std::string &title) {
+  std::unique_lock<std::mutex> lock(x_lock);
   XStoreName(display.get(), *window.get(), title.c_str());
 }
 
 void Window::eventLoop() {
-  std::unique_lock<std::mutex> lock(x_lock);
-  // ICCCM communication
-  const Atom kMsgWmDeleteWindow =
-      XInternAtom(display.get(), "WM_DELETE_WINDOW", False);
-  std::vector<Atom> msgs = {kMsgWmDeleteWindow};
-  XSetWMProtocols(display.get(), *window.get(), msgs.data(),
-                  static_cast<int>(msgs.size()));
+  Atom kMsgWmDeleteWindow;
+  {
+    std::unique_lock<std::mutex> lock(x_lock);
+    // ICCCM communication
+    kMsgWmDeleteWindow = XInternAtom(display.get(), "WM_DELETE_WINDOW", False);
+    std::vector<Atom> msgs = {kMsgWmDeleteWindow};
+    XSetWMProtocols(display.get(), *window.get(), msgs.data(),
+                    static_cast<int>(msgs.size()));
+  }
 
   XEvent event;
   for (;;) {
-    XNextEvent(display.get(), &event);
+    {
+      std::unique_lock<std::mutex> lock(x_lock);
+      XNextEvent(display.get(), &event);
+    }
     switch (event.type) {
       case KeyPress:
         Spool::getInstance()->publish(
-            std::shared_ptr<Event>(new x::event::Key(event.xkey)));
+            std::shared_ptr<Event>(new x::event::Key{this, event.xkey}));
         break;
       case KeyRelease:
         Spool::getInstance()->publish(
-            std::shared_ptr<Event>(new x::event::Key(event.xkey)));
+            std::shared_ptr<Event>(new x::event::Key{this, event.xkey}));
         break;
       case ClientMessage:
         auto atom = static_cast<Atom>(event.xclient.data.l[0]);
@@ -139,13 +151,15 @@ std::thread Window::runEventLoop() {
 
 namespace event {
 
-Key::Key(XKeyEvent event) : xevent{event} {}
+Key::Key(Window *parent, XKeyEvent event) : xevent{event}, window{parent} {}
 
 bool Key::isPress() const { return xevent.type == KeyPress; }
 
 bool Key::isRelease() const { return xevent.type == KeyRelease; }
 
 uint32_t Key::getCode() const { return xevent.keycode; }
+
+basilisk::Window *Key::getWindow() const { return window; }
 
 std::string Key::description() { return "X key pressed/released event"; }
 
