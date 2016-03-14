@@ -30,6 +30,10 @@ class Window {
 
   virtual std::string getTitle() const = 0;
   virtual void setTitle(const std::string &title) = 0;
+
+  virtual void bind() const = 0;
+  virtual void unbind() const = 0;
+  virtual void swap() = 0;
 };
 
 namespace window {
@@ -60,7 +64,93 @@ class Key : public Event {
   virtual ~Key();
   virtual bool isPress() const = 0;
   virtual bool isRelease() const = 0;
-  virtual uint32_t getCode() const = 0;
+  virtual bool isShiftPressed() const = 0;
+  virtual bool isControlPressed() const = 0;
+
+  enum class Code : uint32_t {
+    kEsc = 9,
+    kNumber1,
+    kNumber2,
+    kNumber3,
+    kNumber4,
+    kNumber5,
+    kNumber6,
+    kNumber7,
+    kNumber8,
+    kNumber9,
+    kNumber0,
+    kDash,
+    kEquals,
+    kBackSpace,
+    kTab,
+    kCharacterQ,
+    kCharacterW,
+    kCharacterE,
+    kCharacterR,
+    kCharacterT,
+    kCharacterY,
+    kCharacterU,
+    kCharacterI,
+    kCharacterO,
+    kCharacterP,
+    kLeftBracket,
+    kRightBracket,
+    kReturn,
+    kLeftControl,
+    kCharacterA,
+    kCharacterS,
+    kCharacterD,
+    kCharacterF,
+    kCharacterG,
+    kCharacterH,
+    kCharacterJ,
+    kCharacterK,
+    kCharacterL,
+    kSemicolon,
+    kQuote,
+    kBackTick,
+    kLeftShift,
+    kBackSlash,
+    kCharacterZ,
+    kCharacterX,
+    kCharacterC,
+    kCharacterV,
+    kCharacterB,
+    kCharacterN,
+    kCharacterM,
+    kComma,
+    kPeriod,
+    kForwardSlash,
+    kRightShift,
+    kAsterisk,
+    kLeftAlternate,
+    kSpace,
+    kCapsLock,
+    kUp = 111,
+    kDown = 116,
+    kLeft = 113,
+    kRight = 114,
+    kFunction1 = 67,
+    kFunction2,
+    kFunction3,
+    kFunction4,
+    kFunction5,
+    kFunction6,
+    kFunction7,
+    kFunction8,
+    kFunction9,
+    kFunction10,
+    kFunction11 = 95,
+    kFunction12,
+  };
+  virtual Code getCode() const = 0;
+
+  virtual bool isCharacter() const = 0;
+  virtual char toCharacter() const = 0;
+
+  virtual std::tuple<int, int> getCursorPosition() const = 0;
+  virtual std::chrono::time_point<std::chrono::high_resolution_clock> getTime()
+      const = 0;
 };
 
 // Cursor movement event
@@ -89,6 +179,11 @@ class Window : public basilisk::Window {
 
   std::string getTitle() const override;
   void setTitle(const std::string &title) override;
+
+  void bind() const override;
+  void unbind() const override;
+
+  void swap() override;
 
   // Spawns events
   std::thread runEventLoop();
@@ -119,11 +214,18 @@ namespace event {
 class Key : public window::event::Key {
  public:
   Key(Window *parent, XKeyEvent event);
+  std::string description() override;
+  basilisk::Window *getWindow() const override;
   bool isPress() const override;
   bool isRelease() const override;
-  uint32_t getCode() const override;
-  basilisk::Window *getWindow() const override;
-  std::string description() override;
+  bool isShiftPressed() const override;
+  bool isControlPressed() const override;
+  bool isCharacter() const override;
+  char toCharacter() const override;
+  Code getCode() const override;
+  std::tuple<int, int> getCursorPosition() const override;
+  std::chrono::time_point<std::chrono::high_resolution_clock> getTime()
+      const override;
 
  private:
   const XKeyEvent xevent;

@@ -15,13 +15,15 @@ void Publisher::publish(std::shared_ptr<basilisk::Event> event) {
   ([&](std::shared_ptr<basilisk::window::event::Key> kevent) {
     if (kevent != nullptr) {
       if (kevent->isPress()) {
-        auto dim = kevent->getWindow()->getDimensions();
-        std::cout << "Dimensions: {" << std::get<0>(dim) << ", "
-                  << std::get<1>(dim) << "}" << std::endl;
-        kevent->getWindow()->setDimensions(
-            std::make_tuple(std::get<0>(dim) + 5, std::get<1>(dim) + 5));
+        if (kevent->isCharacter()) {
+          std::cout << kevent->toCharacter() << std::flush;
+        }
       }
     }
+    std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(
+                     kevent->getTime().time_since_epoch())
+                     .count()
+              << std::endl;
   })(std::dynamic_pointer_cast<basilisk::window::event::Key>(event));
 }
 
